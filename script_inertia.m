@@ -11,7 +11,7 @@ run('config_inertia.m');
 
 %% --- Validazione input ---------------------------------------------------
 requiredVars = {'I_total','M_total','cg_total','cg_noMotor', ...
-                'M_motor_dry','R_out','L_motor', ...
+                'M_motor_dry','L_rocket','R_out','L_motor', ...
                 'rho_grain','n_grains','r_grain','h_grain'};
 for k = 1:numel(requiredVars)
     assert(exist(requiredVars{k}, 'var')==1, 'Variabile mancante: %s', requiredVars{k});
@@ -29,8 +29,9 @@ assert(isscalar(cg_noMotor) && isnumeric(cg_noMotor), 'cg_noMotor deve essere un
 cg_total_v   = [0;0;cg_total];
 cg_noMotor_v = [0;0;cg_noMotor];
 
-% CG motore (pieno e a secco) assunto = L_motor/2 lungo Z
-cg_motor = L_motor/2;
+% CG motore (pieno e a secco) assunto = L_rocket - L_motor/2 lungo Z
+% (coordinate dal naso: il fondo del motore coincide con il fondo del razzo)
+cg_motor = L_rocket - L_motor/2;
 cg_motor_dry = cg_motor;
 cg_motor_v = [0;0;cg_motor];
 
@@ -38,6 +39,8 @@ assert(isscalar(M_motor_dry) && isnumeric(M_motor_dry) && M_motor_dry > 0, ...
     'M_motor_dry deve essere uno scalare > 0');
 assert(isscalar(R_out) && R_out > 0, 'R_out deve essere > 0');
 assert(isscalar(L_motor) && L_motor > 0, 'L_motor deve essere > 0');
+assert(isscalar(L_rocket) && L_rocket > 0, 'L_rocket deve essere > 0');
+assert(L_rocket >= L_motor, 'L_rocket deve essere >= L_motor');
 assert(isscalar(rho_grain) && rho_grain > 0, 'rho_grain deve essere > 0');
 assert(isscalar(n_grains) && n_grains > 0, 'n_grains deve essere > 0');
 assert(isscalar(r_grain) && r_grain > 0, 'r_grain deve essere > 0');
@@ -87,7 +90,7 @@ cg_rocket_noMotor = cg_noMotor;
 
 %% --- Sottrazione inerziale ----------------------------------------------
 % 1) Porta l'inerzia del motore dal suo CG al CG totale
-%    (cg_motor assunto = L_motor/2 lungo Z)
+%    (cg_motor = L_rocket - L_motor/2: fondo motore coincide con fondo razzo)
 d_motor = cg_motor_v - cg_total_v;
 I_motor_aboutCGtotal = I_motor_c + par_axis(M_motor, d_motor);
 
