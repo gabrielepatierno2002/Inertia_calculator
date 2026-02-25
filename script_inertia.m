@@ -4,15 +4,15 @@
 % partendo da:
 %   - (M_total, cg_total, I_total) del razzo completo CON motore
 %     con I_total riferito a cg_total (OpenRocket)
-%   - (M_motor, cg_motor, I_motor_c) del motore
-%     con I_motor_c riferito a cg_motor
+%   - Dati del motore e del propellente (semplificati)
 % -------------------------------------------------------------------------
 
 run('config_inertia.m');
 
 %% --- Validazione input ---------------------------------------------------
-requiredVars = {'I_total','M_total','cg_total','I_motor_c','M_motor','cg_motor', ...
-                'cg_noMotor','M_motor_dry','cg_motor_dry','R_out','R_in','L_motor'};
+requiredVars = {'I_total','M_total','cg_total','cg_motor', ...
+                'cg_noMotor','M_motor_dry','cg_motor_dry','R_out','L_motor', ...
+                'rho_grain','n_grains','r_grain','h_grain'};
 for k = 1:numel(requiredVars)
     assert(exist(requiredVars{k}, 'var')==1, 'Variabile mancante: %s', requiredVars{k});
 end
@@ -20,10 +20,8 @@ end
 if isempty(cg_total), cg_total = [0;0;0]; end
 if isempty(cg_motor), cg_motor = [0;0;0]; end
 
-assert(isequal(size(I_total),   [3,3]), 'I_total deve essere 3x3');
-assert(isequal(size(I_motor_c), [3,3]), 'I_motor_c deve essere 3x3');
+assert(isequal(size(I_total), [3,3]), 'I_total deve essere 3x3');
 assert(isscalar(M_total) && isnumeric(M_total) && M_total > 0, 'M_total deve essere uno scalare > 0');
-assert(isscalar(M_motor) && isnumeric(M_motor) && M_motor > 0, 'M_motor deve essere uno scalare > 0');
 
 cg_total = cg_total(:);
 cg_motor = cg_motor(:);
@@ -38,19 +36,37 @@ assert(numel(cg_noMotor)==3 && numel(cg_motor_dry)==3, ...
 assert(isscalar(M_motor_dry) && isnumeric(M_motor_dry) && M_motor_dry > 0, ...
     'M_motor_dry deve essere uno scalare > 0');
 assert(isscalar(R_out) && R_out > 0, 'R_out deve essere > 0');
-assert(isscalar(R_in)  && R_in  >= 0,'R_in deve essere >= 0');
 assert(isscalar(L_motor) && L_motor > 0, 'L_motor deve essere > 0');
+assert(isscalar(rho_grain) && rho_grain > 0, 'rho_grain deve essere > 0');
+assert(isscalar(n_grains) && n_grains > 0, 'n_grains deve essere > 0');
+assert(isscalar(r_grain) && r_grain > 0, 'r_grain deve essere > 0');
+assert(isscalar(h_grain) && h_grain > 0, 'h_grain deve essere > 0');
+
+% R_in opzionale: se non definito, uso il raggio del grano
+if ~exist('R_in', 'var') || isempty(R_in)
+    R_in = r_grain;
+end
+assert(isscalar(R_in) && R_in >= 0, 'R_in deve essere >= 0');
 assert(R_out > R_in, 'R_out deve essere > R_in');
 
 % Forzo simmetria numerica (utile se arriva da CAD con piccoli errori)
-I_total   = 0.5*(I_total   + I_total.');
-I_motor_c = 0.5*(I_motor_c + I_motor_c.');
+I_total = 0.5*(I_total + I_total.');
 
-%% --- Motor dry inertia (hollow cylinder, Z = axial/nose axis) -----------
+%% --- Propellente (massa) -------------------------------------------------
+V_grain = pi * r_grain^2 * h_grain; % volume grano (cilindro pieno)
+M_prop = rho_grain * n_grains * V_grain;
+
+%% --- Massa motore completo ----------------------------------------------
+M_motor = M_motor_dry + M_prop;
+
+%% --- Inerzia motore (cilindro cavo, Z = asse) ----------------------------
+I_ax_full = 0.5 * M_motor * (R_out^2 + R_in^2);
+I_tr_full = (1/12) * M_motor * (3*(R_out^2 + R_in^2) + L_motor^2);
+I_motor_c = diag([I_tr_full, I_tr_full, I_ax_full]);
+
+%% --- Inerzia motore a secco (stessa geometria) ---------------------------
 I_ax_dry = 0.5  * M_motor_dry * (R_out^2 + R_in^2);
 I_tr_dry = (1/12) * M_motor_dry * (3*(R_out^2 + R_in^2) + L_motor^2);
-
-% Z is axial (nose), X and Y are transverse
 I_motor_dry_c = diag([I_tr_dry, I_tr_dry, I_ax_dry]);
 
 %% --- Steiner (assi paralleli) -------------------------------------------
@@ -63,7 +79,7 @@ if m_rocket_noMotor <= 0
 end
 
 if M_motor_dry >= M_motor
-    warning('M_motor_dry (%.6g) >= M_motor (%.6g): the dry mass should be less than the total motor mass.', M_motor_dry, M_motor);
+    warning('M_motor_dry (%.6g) >= M_motor (%.6g): la massa a secco dovrebbe essere < massa totale.', M_motor_dry, M_motor);
 end
 
 cg_rocket_noMotor = cg_noMotor;
@@ -94,20 +110,21 @@ disp('======================================================');
 disp('                INERTIA CALCULATOR                    ');
 disp('======================================================');
 
-disp('1) MOTOR DRY INERTIA TENSOR (at its own CG) [hollow cylinder]:');
-disp(I_motor_dry_c);
+fprintf('Propellant mass             : %.6g kg\n', M_prop);
 
-disp('2) INERTIA TENSOR OF ROCKET WITHOUT MOTOR (at its own CG):');
-disp(I_rocket_noMotor);
-
-disp('3) MOTOR FULL INERTIA TENSOR (at its own CG) [INPUT]:');
+fprintf('Motor total mass            : %.6g kg\n', M_motor);
+disp('Motor total inertia tensor (at its own CG) [hollow cylinder]:');
 disp(I_motor_c);
 
-disp('------------------------------------------------------');
-fprintf('Dry motor mass              : %.6g kg\n', M_motor_dry);
-fprintf('Motor dry CG                : [%.6g; %.6g; %.6g] m\n', cg_motor_dry);
+fprintf('Motor dry mass              : %.6g kg\n', M_motor_dry);
+disp('Motor dry inertia tensor (at its own CG) [hollow cylinder]:');
+disp(I_motor_dry_c);
+
 fprintf('Rocket mass without motor   : %.6g kg\n', m_rocket_noMotor);
 fprintf('Rocket CG without motor     : [%.6g; %.6g; %.6g] m\n', cg_rocket_noMotor);
+disp('Inertia tensor of rocket WITHOUT motor (at its own CG):');
+disp(I_rocket_noMotor);
+
 disp('======================================================');
 
 %% --- Salvataggio in Struct ----------------------------------------------
@@ -123,5 +140,6 @@ info = struct( ...
     'I_motor_dry_c',      I_motor_dry_c, ...
     'M_total',            M_total, ...
     'cg_total',           cg_total, ...
-    'I_total',            I_total ...
-);
+    'I_total',            I_total, ...
+    'M_prop',             M_prop ...
+    );
