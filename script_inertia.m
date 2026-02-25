@@ -8,10 +8,11 @@
 %     con I_motor_c riferito a cg_motor
 % -------------------------------------------------------------------------
 
-run('config_inertia.mlx');
+run('config_inertia.m');
 
 %% --- Validazione input ---------------------------------------------------
-requiredVars = {'I_total','M_total','cg_total','I_motor_c','M_motor','cg_motor'};
+requiredVars = {'I_total','M_total','cg_total','I_motor_c','M_motor','cg_motor', ...
+                'cg_noMotor','M_motor_dry','cg_motor_dry','R_out','R_in','L_motor'};
 for k = 1:numel(requiredVars)
     assert(exist(requiredVars{k}, 'var')==1, 'Variabile mancante: %s', requiredVars{k});
 end
@@ -28,9 +29,29 @@ cg_total = cg_total(:);
 cg_motor = cg_motor(:);
 assert(numel(cg_total)==3 && numel(cg_motor)==3, 'cg_total e cg_motor devono avere 3 elementi');
 
+if isempty(cg_noMotor),   cg_noMotor   = [0;0;0]; end
+if isempty(cg_motor_dry), cg_motor_dry = [0;0;0]; end
+cg_noMotor   = cg_noMotor(:);
+cg_motor_dry = cg_motor_dry(:);
+assert(numel(cg_noMotor)==3 && numel(cg_motor_dry)==3, ...
+    'cg_noMotor e cg_motor_dry devono avere 3 elementi');
+assert(isscalar(M_motor_dry) && isnumeric(M_motor_dry) && M_motor_dry > 0, ...
+    'M_motor_dry deve essere uno scalare > 0');
+assert(isscalar(R_out) && R_out > 0, 'R_out deve essere > 0');
+assert(isscalar(R_in)  && R_in  >= 0,'R_in deve essere >= 0');
+assert(isscalar(L_motor) && L_motor > 0, 'L_motor deve essere > 0');
+assert(R_out > R_in, 'R_out deve essere > R_in');
+
 % Forzo simmetria numerica (utile se arriva da CAD con piccoli errori)
 I_total   = 0.5*(I_total   + I_total.');
 I_motor_c = 0.5*(I_motor_c + I_motor_c.');
+
+%% --- Motor dry inertia (hollow cylinder, Z = axial/nose axis) -----------
+I_ax_dry = 0.5  * M_motor_dry * (R_out^2 + R_in^2);
+I_tr_dry = (1/12) * M_motor_dry * (3*(R_out^2 + R_in^2) + L_motor^2);
+
+% Z is axial (nose), X and Y are transverse
+I_motor_dry_c = diag([I_tr_dry, I_tr_dry, I_ax_dry]);
 
 %% --- Steiner (assi paralleli) -------------------------------------------
 par_axis = @(m, d) m * (dot(d,d) * eye(3) - (d * d.'));
@@ -41,7 +62,11 @@ if m_rocket_noMotor <= 0
     error('M_motor (%.6g) >= M_total (%.6g): impossibile calcolare il razzo senza motore.', M_motor, M_total);
 end
 
-cg_rocket_noMotor = (M_total * cg_total - M_motor * cg_motor) / m_rocket_noMotor;
+if M_motor_dry >= M_motor
+    warning('M_motor_dry (%.6g) >= M_motor (%.6g): the dry mass should be less than the total motor mass.', M_motor_dry, M_motor);
+end
+
+cg_rocket_noMotor = cg_noMotor;
 
 %% --- Sottrazione inerziale ----------------------------------------------
 % 1) Porta l'inerzia del motore dal suo CG al CG totale
@@ -69,15 +94,20 @@ disp('======================================================');
 disp('                INERTIA CALCULATOR                    ');
 disp('======================================================');
 
-disp('1) TENSORE DI INERZIA DEL RAZZO SENZA MOTORE (sul proprio CG):');
+disp('1) MOTOR DRY INERTIA TENSOR (at its own CG) [hollow cylinder]:');
+disp(I_motor_dry_c);
+
+disp('2) INERTIA TENSOR OF ROCKET WITHOUT MOTOR (at its own CG):');
 disp(I_rocket_noMotor);
 
-disp('2) TENSORE DI INERZIA DEL MOTORE (sul proprio CG) [INPUT]:');
+disp('3) MOTOR FULL INERTIA TENSOR (at its own CG) [INPUT]:');
 disp(I_motor_c);
 
 disp('------------------------------------------------------');
-fprintf('Massa razzo senza motore : %.6g kg\n', m_rocket_noMotor);
-fprintf('CG razzo senza motore    : [%.6g; %.6g; %.6g] m\n', cg_rocket_noMotor);
+fprintf('Dry motor mass              : %.6g kg\n', M_motor_dry);
+fprintf('Motor dry CG                : [%.6g; %.6g; %.6g] m\n', cg_motor_dry);
+fprintf('Rocket mass without motor   : %.6g kg\n', m_rocket_noMotor);
+fprintf('Rocket CG without motor     : [%.6g; %.6g; %.6g] m\n', cg_rocket_noMotor);
 disp('======================================================');
 
 %% --- Salvataggio in Struct ----------------------------------------------
@@ -88,6 +118,9 @@ info = struct( ...
     'M_motor',            M_motor, ...
     'cg_motor',           cg_motor, ...
     'I_motor_c',          I_motor_c, ...
+    'M_motor_dry',        M_motor_dry, ...
+    'cg_motor_dry',       cg_motor_dry, ...
+    'I_motor_dry_c',      I_motor_dry_c, ...
     'M_total',            M_total, ...
     'cg_total',           cg_total, ...
     'I_total',            I_total ...
