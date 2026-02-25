@@ -1,4 +1,4 @@
-# 🚀 Rocket Inertia Calculator
+# Rocket Inertia Calculator
 
 This MATLAB tool calculates the **inertia tensor, mass, and center of gravity (CG)** of a rocket **without its motor** (dry/empty airframe configuration), starting from the full rocket data provided by simulation software like [OpenRocket](https://openrocket.info/).
 
@@ -16,7 +16,7 @@ It is essential for flight dynamics analysis, allowing you to separate the vehic
 
 ---
 
-## 🔬 How It Works (The Physics)
+## How It Works 
 
 Since the centers of gravity (CG) of the full rocket, the empty rocket, and the motor are located at different positions along the longitudinal axis (Z), the code applies the **Huygens-Steiner Theorem** (Parallel Axis Theorem) through three steps:
 
@@ -31,9 +31,6 @@ Since the centers of gravity (CG) of the full rocket, the empty rocket, and the 
 ---
 
 ## 📋 Prerequisites
-
-- **MATLAB** (any recent version)
-- **No additional toolboxes** required
 - Your rocket's physical data, typically from [OpenRocket](https://openrocket.info/) or a similar simulation tool
 
 ---
