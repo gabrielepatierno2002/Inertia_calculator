@@ -10,29 +10,30 @@
 run('config_inertia.m');
 
 %% --- Validazione input ---------------------------------------------------
-requiredVars = {'I_total','M_total','cg_total','cg_motor', ...
-                'cg_noMotor','M_motor_dry','cg_motor_dry','R_out','L_motor', ...
+requiredVars = {'I_total','M_total','cg_total','cg_noMotor', ...
+                'M_motor_dry','R_out','L_motor', ...
                 'rho_grain','n_grains','r_grain','h_grain'};
 for k = 1:numel(requiredVars)
     assert(exist(requiredVars{k}, 'var')==1, 'Variabile mancante: %s', requiredVars{k});
 end
 
-if isempty(cg_total), cg_total = [0;0;0]; end
-if isempty(cg_motor), cg_motor = [0;0;0]; end
+if isempty(cg_total),  cg_total = 0; end
+if isempty(cg_noMotor), cg_noMotor = 0; end
 
 assert(isequal(size(I_total), [3,3]), 'I_total deve essere 3x3');
 assert(isscalar(M_total) && isnumeric(M_total) && M_total > 0, 'M_total deve essere uno scalare > 0');
+assert(isscalar(cg_total) && isnumeric(cg_total), 'cg_total deve essere uno scalare (asse Z)');
+assert(isscalar(cg_noMotor) && isnumeric(cg_noMotor), 'cg_noMotor deve essere uno scalare (asse Z)');
 
-cg_total = cg_total(:);
-cg_motor = cg_motor(:);
-assert(numel(cg_total)==3 && numel(cg_motor)==3, 'cg_total e cg_motor devono avere 3 elementi');
+% Converto in vettori 3x1 lungo Z per i calcoli
+cg_total_v   = [0;0;cg_total];
+cg_noMotor_v = [0;0;cg_noMotor];
 
-if isempty(cg_noMotor),   cg_noMotor   = [0;0;0]; end
-if isempty(cg_motor_dry), cg_motor_dry = [0;0;0]; end
-cg_noMotor   = cg_noMotor(:);
-cg_motor_dry = cg_motor_dry(:);
-assert(numel(cg_noMotor)==3 && numel(cg_motor_dry)==3, ...
-    'cg_noMotor e cg_motor_dry devono avere 3 elementi');
+% CG motore (pieno e a secco) assunto = L_motor/2 lungo Z
+cg_motor = L_motor/2;
+cg_motor_dry = cg_motor;
+cg_motor_v = [0;0;cg_motor];
+
 assert(isscalar(M_motor_dry) && isnumeric(M_motor_dry) && M_motor_dry > 0, ...
     'M_motor_dry deve essere uno scalare > 0');
 assert(isscalar(R_out) && R_out > 0, 'R_out deve essere > 0');
@@ -86,14 +87,15 @@ cg_rocket_noMotor = cg_noMotor;
 
 %% --- Sottrazione inerziale ----------------------------------------------
 % 1) Porta l'inerzia del motore dal suo CG al CG totale
-d_motor = cg_motor - cg_total;
+%    (cg_motor assunto = L_motor/2 lungo Z)
+d_motor = cg_motor_v - cg_total_v;
 I_motor_aboutCGtotal = I_motor_c + par_axis(M_motor, d_motor);
 
 % 2) Sottraggo l'inerzia del motore da quella totale (entrambe al CG totale)
 I_rocket_aboutCGtotal = I_total - I_motor_aboutCGtotal;
 
 % 3) Riporto l'inerzia del razzo vuoto dal CG totale al SUO vero baricentro
-d_rocket = cg_rocket_noMotor - cg_total;
+d_rocket = cg_noMotor_v - cg_total_v;
 I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(m_rocket_noMotor, d_rocket);
 
 % Simmetrizza (numerico)
@@ -121,7 +123,7 @@ disp('Motor dry inertia tensor (at its own CG) [hollow cylinder]:');
 disp(I_motor_dry_c);
 
 fprintf('Rocket mass without motor   : %.6g kg\n', m_rocket_noMotor);
-fprintf('Rocket CG without motor     : [%.6g; %.6g; %.6g] m\n', cg_rocket_noMotor);
+fprintf('Rocket CG without motor     : %.6g m\n', cg_rocket_noMotor);
 disp('Inertia tensor of rocket WITHOUT motor (at its own CG):');
 disp(I_rocket_noMotor);
 
