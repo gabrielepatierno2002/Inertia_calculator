@@ -11,12 +11,13 @@ I_total  = eye(3);            % [kg*m^2] tensore inerzia totale @ cg_total (3x3)
 
 %% --- Baricentri (coerenti con il sistema di riferimento) -----------------
 cg_noMotor    = 0;            % [m]  baricentro razzo senza motore (asse Z)
-% cg_motor e cg_motor_dry NON sono input: si assumono entrambi = L_motor/2
+% cg_motor e cg_motor_dry NON sono input: si calcolano come L_rocket - L_motor/2
 
 %% --- Motore a secco -------------------------------------------------------
 M_motor_dry = 0;              % [kg] massa motore a secco (senza propellente)
 
-%% --- Geometria esterna motore (cilindro cavo) ----------------------------
+%% --- Geometria razzo e motore (cilindro cavo) ----------------------------
+L_rocket = 0;                 % [m] lunghezza totale razzo (dal naso al fondo)
 R_out  = 0;                   % [m] raggio esterno motore
 L_motor = 0;                  % [m] altezza/lunghezza motore
 % R_in = 0;                   % [m] raggio interno (opzionale). Se non impostato -> R_in = r_grain
