@@ -6,13 +6,12 @@
 
 %% --- Dati razzo COMPLETO (con motore) [da OpenRocket/CAD] -----------------
 M_total  = 0;                 % [kg] massa totale razzo con motore
-cg_total = [0; 0; 0];          % [m]  baricentro totale (colonna 3x1)
-I_total  = eye(3);             % [kg*m^2] tensore inerzia totale @ cg_total (3x3)
+cg_total = 0;                 % [m]  baricentro totale (asse Z)
+I_total  = eye(3);            % [kg*m^2] tensore inerzia totale @ cg_total (3x3)
 
 %% --- Baricentri (coerenti con il sistema di riferimento) -----------------
-cg_motor      = [0; 0; 0];     % [m]  baricentro motore completo
-cg_noMotor    = [0; 0; 0];     % [m]  baricentro razzo senza motore
-cg_motor_dry  = [0; 0; 0];     % [m]  baricentro motore a secco
+cg_noMotor    = 0;            % [m]  baricentro razzo senza motore (asse Z)
+% cg_motor e cg_motor_dry NON sono input: si assumono entrambi = L_motor/2
 
 %% --- Motore a secco -------------------------------------------------------
 M_motor_dry = 0;              % [kg] massa motore a secco (senza propellente)
