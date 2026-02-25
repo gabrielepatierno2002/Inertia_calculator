@@ -4,7 +4,7 @@ This MATLAB tool calculates the inertia tensor, mass, and center of gravity (CG)
 It is essential for flight dynamics analysis, allowing you to separate the vehicle's structural dynamics from the variable properties of the propellant and the motor casing.
 
 🚀 How it Works (The Physics)
-The calculation is not a simple algebraic subtraction. Since the centers of gravity (CG) of the full rocket, the empty rocket, and the motor are located at different positions along the longitudinal axis (Z), the code rigorously applies the Huygens-Steiner Theorem (Parallel Axis Theorem) through three steps:
+Since the centers of gravity (CG) of the full rocket, the empty rocket, and the motor are located at different positions along the longitudinal axis (Z), the code applies the Huygens-Steiner Theorem (Parallel Axis Theorem) through three steps:
 
 Forward Transport: It models the motor (dry + propellant) as a hollow cylinder, calculates its local inertia tensor, and transports it from its own CG to the total CG of the full rocket.
 
