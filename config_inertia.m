@@ -1,42 +1,29 @@
 % config_inertia.m
 % -------------------------------------------------------------------------
-% File di configurazione per script_inertia.m
-%
-% Inserisci qui i dati del tuo razzo e del motore.
-% Tutti i vettori CG sono nella forma [x; y; z] (colonna, in metri).
-% Tutti i tensori di inerzia sono matrici 3x3 (in kg*m^2).
+% Configurazione input per il calcolo dell'inerzia del razzo SENZA motore
+% e dell'inerzia del motore (approssimato come cilindro cavo).
 % -------------------------------------------------------------------------
 
-%% --- Razzo totale CON motore (dati da OpenRocket o misura) ---------------
-% Massa totale razzo + motore [kg]
-M_total  = 41;
+%% --- Dati razzo COMPLETO (con motore) [da OpenRocket/CAD] -----------------
+M_total  = 0;                 % [kg] massa totale razzo con motore
+cg_total = [0; 0; 0];          % [m]  baricentro totale (colonna 3x1)
+I_total  = eye(3);             % [kg*m^2] tensore inerzia totale @ cg_total (3x3)
 
-% Baricentro razzo + motore [m]
-cg_total = [0; 0; 0.1];
+%% --- Baricentri (coerenti con il sistema di riferimento) -----------------
+cg_motor      = [0; 0; 0];     % [m]  baricentro motore completo
+cg_noMotor    = [0; 0; 0];     % [m]  baricentro razzo senza motore
+cg_motor_dry  = [0; 0; 0];     % [m]  baricentro motore a secco
 
-% Tensore di inerzia totale riferito a cg_total [kg*m^2]
-I_total  = diag([25, 25, 0.6]);
+%% --- Motore a secco -------------------------------------------------------
+M_motor_dry = 0;              % [kg] massa motore a secco (senza propellente)
 
-%% --- Razzo SENZA motore (CG da OpenRocket o misura) ----------------------
-% Baricentro del razzo senza motore [m]
-cg_noMotor = [0; 0; 0.15];
+%% --- Geometria esterna motore (cilindro cavo) ----------------------------
+R_out  = 0;                   % [m] raggio esterno motore
+L_motor = 0;                  % [m] altezza/lunghezza motore
+% R_in = 0;                   % [m] raggio interno (opzionale). Se non impostato -> R_in = r_grain
 
-%% --- Motore completo (casing + propellente) ------------------------------
-% Massa motore completo [kg]
-M_motor   = 20;
-
-% Baricentro motore completo [m]
-cg_motor  = [0; 0; 0.0];
-
-% Tensore di inerzia del motore completo riferito a cg_motor [kg*m^2]
-I_motor_c = diag([0.8, 0.8, 0.05]);
-
-%% --- Solo propellente ----------------------------------------------------
-% Massa propellente [kg]
-M_propellant  = 15;
-
-% Baricentro propellente [m]
-cg_propellant = [0; 0; 0.0];
-
-% Tensore di inerzia del propellente riferito a cg_propellant [kg*m^2]
-I_propellant_c = diag([0.5, 0.5, 0
+%% --- Propellente (grani cilindrici pieni, semplificati) ------------------
+rho_grain = 0;                % [kg/m^3] densita' propellente
+n_grains  = 0;                % [-] numero di grani
+r_grain   = 0;                % [m] raggio di ciascun grano
+h_grain   = 0;                % [m] altezza di ciascun grano
