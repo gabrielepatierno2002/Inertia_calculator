@@ -1,0 +1,183 @@
+% script_inertia.m
+% -------------------------------------------------------------------------
+% Calcola:
+%  - massa, baricentro e inerzia del razzo SENZA motore (come prima)
+%  - inerzia della sola corazza del motore (dry mass casing) a partire da
+%    massa totale motore, posizione baricentro motore, e dati del grano
+%    (densità grano e geometria) forniti in config_inertia.mlx
+% Inputs required from config_inertia.mlx:
+%   I_total, M_total, cg_total        (razzo completo, I riferita a cg_total)
+%   I_motor_c, M_motor, cg_motor      (motore completo, I riferita a cg_motor)
+%   grain_density                     (densità del materiale del grano) [kg/m^3]
+%   grain_geometry                    (struct con campi necessari, vedi sotto)
+%       Possibili campi usati: volume_grain, volume_motor_total
+%       (volume_grain = volume del propellente; volume_motor_total = volume esterno del motor)
+% -------------------------------------------------------------------------
+
+run('config_inertia.mlx');
+
+%% --- Validazione input ---------------------------------------------------
+requiredVars = {'I_total','M_total','cg_total','I_motor_c','M_motor','cg_motor'};
+for k = 1:numel(requiredVars)
+    assert(exist(requiredVars{k}, 'var')==1, 'Variabile mancante: %s', requiredVars{k});
+end
+
+% grain-related inputs are optional but required for casing calculation
+if ~exist('grain_density','var') || ~exist('grain_geometry','var')
+    warnCasing = true;
+else
+    warnCasing = false;
+end
+
+if isempty(cg_total), cg_total = [0;0;0]; end
+if isempty(cg_motor), cg_motor = [0;0;0]; end
+
+assert(isequal(size(I_total),   [3,3]), 'I_total deve essere 3x3');
+assert(isequal(size(I_motor_c), [3,3]), 'I_motor_c deve essere 3x3');
+assert(isscalar(M_total) && isnumeric(M_total) && M_total > 0, 'M_total deve essere uno scalare > 0');
+assert(isscalar(M_motor) && isnumeric(M_motor) && M_motor > 0, 'M_motor deve essere uno scalare > 0');
+
+cg_total = cg_total(:);
+cg_motor = cg_motor(:);
+assert(numel(cg_total)==3 && numel(cg_motor)==3, 'cg_total e cg_motor devono avere 3 elementi');
+
+% Forzo simmetria numerica (utile se arriva da CAD con piccoli errori)
+I_total   = 0.5*(I_total   + I_total.');
+I_motor_c = 0.5*(I_motor_c + I_motor_c.');
+
+%% --- Steiner (assi paralleli) -------------------------------------------
+par_axis = @(m, d) m * (dot(d,d) * eye(3) - (d * d.'));
+
+%% --- Calcolo massa e CG del razzo senza motore --------------------------
+m_rocket_noMotor = M_total - M_motor;
+if m_rocket_noMotor <= 0
+    error('M_motor (%.6g) >= M_total (%.6g): impossibile calcolare il razzo senza motore.', M_motor, M_total);
+end
+
+cg_rocket_noMotor = (M_total * cg_total - M_motor * cg_motor) / m_rocket_noMotor;
+
+%% --- Sottrazione inerziale (razzo senza motore) -------------------------
+% 1) Porta l'inerzia del motore dal suo CG al CG totale
+d_motor = cg_motor - cg_total;
+I_motor_aboutCGtotal = I_motor_c + par_axis(M_motor, d_motor);
+
+% 2) Sottraggo l'inerzia del motore da quella totale (entrambe al CG totale)
+I_rocket_aboutCGtotal = I_total - I_motor_aboutCGtotal;
+
+% 3) Riporto l'inerzia del razzo vuoto dal CG totale al SUO vero baricentro
+d_rocket = cg_rocket_noMotor - cg_total;
+I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(m_rocket_noMotor, d_rocket);
+
+% Simmetrizza (numerico)
+I_rocket_noMotor = 0.5*(I_rocket_noMotor + I_rocket_noMotor.');
+
+%% --- Calcolo inerzia corazza motore (dry mass casing) --------------------
+% L'idea: se forniamo la densità del grano e la geometria (volumi), possiamo
+% ricavare la massa del grano = density * volume_grain. La massa della
+% corazza (dry mass) = M_motor - mass_grain. Quindi si stima l'inerzia della
+% corazza assumendo che la corazza abbia massa distribuita uniformemente nello
+% spazio tra volume_motor_total e volume_grain. Per semplicità si assume una
+% forma cilindrica coaxiale: si ricava inerzia approssimata come disco/cilindro sottile.
+I_casing_c = NaN(3,3);
+m_casing = NaN;
+cg_casing = cg_motor; % default: assumiamo cg della corazza coincidente con cg_motor
+
+if warnCasing
+    warning('grain_density o grain_geometry mancanti: non posso calcolare la corazza del motore.');
+else
+    % Verifica campi minimi in grain_geometry
+    assert(isstruct(grain_geometry), 'grain_geometry deve essere una struct');
+    assert(isfield(grain_geometry,'volume_grain') && isnumeric(grain_geometry.volume_grain) && grain_geometry.volume_grain>=0, ...
+        'grain_geometry.volume_grain mancante o non valido');
+    assert(isfield(grain_geometry,'volume_motor_total') && isnumeric(grain_geometry.volume_motor_total) && grain_geometry.volume_motor_total>0, ...
+        'grain_geometry.volume_motor_total mancante o non valido');
+
+    volume_grain = grain_geometry.volume_grain;
+    volume_motor_total = grain_geometry.volume_motor_total;
+
+    % Massa del grano e massa della corazza
+    mass_grain = grain_density * volume_grain;
+    m_casing = M_motor - mass_grain;
+    if m_casing <= 0
+        warning('M_casing calcolata <= 0 (%.6g). Controlla densità/granvol e M_motor.', m_casing);
+        I_casing_c = NaN(3,3);
+        m_casing = max(m_casing, 0);
+    else
+        % Approssimazione geometrica: assumiamo cilindro pieno esterno meno interno (grain)
+        % ricaviamo momento d'inerzia di massa m_casing distribuita in volume_shell.
+        % Per semplicità, calcoliamo inerzia isotropa approssimata: I = (2/5) m R^2 tipo sfera
+        % ma più appropriato per cilindro lungo asse: I_axial = (1/2) m R^2; I_radial = (1/12) m (3R^2 + h^2)
+        % Poiché non abbiamo R e h separati necessariamente, prendiamo una stima isotropa
+        % basata su volume: assumiamo forma cilindrica con rapporto h/(2R) = 1 (h = 2R)
+        % da volume V = pi R^2 h => V = pi R^2 * 2R = 2 pi R^3 => R = (V/(2*pi))^(1/3)
+        V_shell = volume_motor_total - volume_grain;
+        if V_shell <= 0
+            warning('Volume della corazza non positivo: volume_motor_total <= volume_grain.');
+            I_casing_c = NaN(3,3);
+        else
+            % stima dimensioni
+            R = (V_shell / (2*pi))^(1/3);
+            h = 2*R;
+            % inerzia cilindro sottile shell approssimata come cilindro pieno di massa m_casing
+            I_axial = 0.5 * m_casing * R^2;
+            I_radial = (1/12) * m_casing * (3*R^2 + h^2);
+            I_casing_c = diag([I_radial, I_radial, I_axial]);
+            % assumiamo centro massa casing = cg_motor (se dati migliori, modificarli nel config)
+            cg_casing = cg_motor(:);
+        end
+    end
+end
+
+%% --- Sanity check --------------------------------------------------------
+if any(eig(I_rocket_noMotor) <= 0)
+    warning(['I_rocket_noMotor non è definito positivo. ' ...
+             'Controlla che I_total sia riferito a cg_total e che cg_motor/cg_total siano coerenti.']);
+end
+
+%% --- Stampa risultati ----------------------------------------------------
+disp('======================================================');
+disp('                INERTIA CALCULATOR                    ');
+disp('======================================================');
+
+disp('1) TENSORE DI INERZIA DEL RAZZO SENZA MOTORE (sul proprio CG):');
+disp(I_rocket_noMotor);
+
+disp('2) TENSORE DI INERZIA DEL MOTORE (sul proprio CG) [INPUT]:');
+disp(I_motor_c);
+
+if ~warnCasing && ~any(isnan(I_casing_c(:)))
+    disp('3) MASSA E INERZIA DELLA CORAZZA DEL MOTORE (sul proprio CG, appross.):');
+    fprintf('Massa corazza (dry mass)    : %.6g kg\n', m_casing);
+    fprintf('CG corazza                  : [%.6g; %.6g; %.6g] m\n', cg_casing);
+    disp('Inerzia corazza (riferita al suo CG):');
+    disp(I_casing_c);
+else
+    disp('3) Corazza motore: non calcolata (mancano dati grain_density/grain_geometry o errore).');
+end
+
+disp('------------------------------------------------------');
+fprintf('Massa razzo senza motore : %.6g kg\n', m_rocket_noMotor);
+fprintf('CG razzo senza motore    : [%.6g; %.6g; %.6g] m\n', cg_rocket_noMotor);
+disp('======================================================');
+
+%% --- Salvataggio in Struct ----------------------------------------------
+info = struct( ...
+    'm_rocket_noMotor',   m_rocket_noMotor, ...
+    'cg_rocket_noMotor',  cg_rocket_noMotor, ...
+    'I_rocket_noMotor',   I_rocket_noMotor, ...
+    'M_motor',            M_motor, ...
+    'cg_motor',           cg_motor, ...
+    'I_motor_c',          I_motor_c, ...
+    'M_total',            M_total, ...
+    'cg_total',           cg_total, ...
+    'I_total',            I_total, ...
+    'casing_mass',        m_casing, ...
+    'casing_cg',          cg_casing, ...
+    'I_casing_c',         I_casing_c, ...
+    'grain_density',      exist('grain_density','var') && ~isempty(grain_density) && ~warnCasing && isfieldwhos('grain_density')  ... % placeholder for presence
+);
+
+% Helper used only to avoid warnings about non-existent variable in struct construction
+function f = isfieldwhos(~)
+    f = true;
+end
