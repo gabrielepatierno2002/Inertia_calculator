@@ -2,8 +2,6 @@
 
 This MATLAB tool calculates the **inertia tensor, mass, and center of gravity (CG)** of a rocket **without its motor** (dry/empty airframe configuration), starting from the full rocket data provided by simulation software like [OpenRocket](https://openrocket.info/).
 
-It is essential for flight dynamics analysis, allowing you to separate the vehicle's structural dynamics from the variable properties of the propellant and the motor casing.
-
 ---
 
 ## 📂 Repository Contents
@@ -197,7 +195,10 @@ run('my_6dof_simulator.m');
 5. **Run** `script_inertia.m` → you now have the airframe's inertia properties, ready for your flight dynamics code.
 
 ---
-
 ## 📄 License
 
-This project is open source. Feel free to use and modify it for your rocketry projects.
+**All rights reserved.**
+
+This code is the exclusive property of the development team. Any reproduction, distribution, modification, or use of this code — in whole or in part — without explicit prior written consent from the team is strictly forbidden.
+
+If you wish to use this code for your own projects, you **must** request permission first by contacting the repository owner.
