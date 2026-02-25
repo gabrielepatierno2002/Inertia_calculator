@@ -155,13 +155,6 @@ info.I_total             % Total rocket inertia tensor [kg·m²]
 info.M_prop              % Propellant mass [kg]
 ```
 
-You can pass this struct directly to a flight simulator:
-
-```matlab
-sim_data.airframe = info;
-run('my_6dof_simulator.m');
-```
-
 ---
 
 ## ⚙️ Key Assumptions & Conventions
@@ -200,4 +193,8 @@ run('my_6dof_simulator.m');
 
 ## 📄 License
 
-This project is open source. Feel free to use and modify it for your rocketry projects.
+**All rights reserved.**
+
+This code is the exclusive property of the development team. Any reproduction, distribution, modification, or use of this code — in whole or in part — without explicit prior written consent from the team is strictly forbidden.
+
+If you wish to use this code for your own projects, you **must** request permission first by contacting the repository owner.
