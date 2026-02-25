@@ -15,7 +15,7 @@
 %                                       I_propellant_c riferito a cg_propellant
 % -------------------------------------------------------------------------
 
-run('config_inertia.mlx');
+run('config_inertia.m');
 
 %% --- Validazione input ---------------------------------------------------
 requiredVars = {'I_total','M_total','cg_total','cg_noMotor', ...
