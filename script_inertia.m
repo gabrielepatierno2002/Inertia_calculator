@@ -1,11 +1,5 @@
 % script_inertia.m
 % -------------------------------------------------------------------------
-% Calcola massa, baricentro e inerzia del razzo SENZA motore
-% partendo da:
-%   - (M_total, cg_total, I_total) del razzo completo CON motore
-%     con I_total riferito a cg_total (OpenRocket)
-%   - Dati del motore (cilindro cavo, semplificato)
-% -------------------------------------------------------------------------
 
 run('config_inertia.m');
 
@@ -62,7 +56,7 @@ I_motor_full = diag([I_tr_full, I_tr_full, I_ax_full]);
 par_axis = @(m, d) m * (dot(d,d) * eye(3) - (d * d.'));
 
 %% --- Calcolo massa e CG del razzo senza motore --------------------------
-if M_rocket_with_no_motor <= 0
+if M_rocket_noMotor <= 0
     error('M_motor (%.6g) >= M_total (%.6g): impossibile calcolare il razzo senza motore.', M_motor, M_total);
 end
 
