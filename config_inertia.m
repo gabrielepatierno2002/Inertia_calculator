@@ -8,7 +8,7 @@
 M_total  = 23.05;              % [kg] massa totale razzo con motore
 M_rocket_with_no_motor = 14.751 ;
 cg_total = 1.70;              % [m] baricentro totale (asse Z dal nose tip)
-I_total  = diag([10.2, 10.24, 0.06]); % [kg*m^2] tensore inerzia totale @ cg_total (3x3)
+I_total  = diag([10.24, 10.24, 0.06]); % [kg*m^2] tensore inerzia totale @ cg_total (3x3)
 
 
 %% --- Baricentro (coerenti con il sistema di riferimento) -----------------
