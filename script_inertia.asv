@@ -43,8 +43,7 @@ assert(L_rocket >= L_motor, 'L_rocket deve essere >= L_motor');
 
 % Forzo simmetria numerica (utile se arriva da CAD con piccoli errori)
 I_total = 0.5*(I_total + I_total.');
-%% -- massa razzo senza motore%%
-M_rocket_noMotor = M_total - M_motor_with_prop;
+
 %% --- Massa motore --------------------------------------------------------
 M_motor = M_motor_dry;
 
@@ -70,25 +69,16 @@ cg_rocket_noMotor = cg_noMotor;
 
 %% --- Sottrazione inerziale ----------------------------------------------
 % 1) Porta l'inerzia del motore dal suo CG al CG totale
-%    (cg_motor = L_rocket - L_motor/2)
-% Spiego passo-passo con commenti e variabili intermedie per chiarezza.
-
-% vettore spostamento dal CG totale al CG motore (d = r_motor - r_total)
+%    (cg_motor = L_rocket - L_motor/2
 d_motor = cg_motor_v - cg_total_v;
-
-% I_motor_full è l'inerzia del motore se fosse un cilindro pieno/composto,
-% calcolata precedentemente per includere eventualmente la propellente (se definita).
-% Qui riportiamo l'inerzia del motore dal suo CG al CG totale usando il teorema di Steiner:
 I_motor_aboutCGtotal = I_motor_full + par_axis(M_motor_with_prop, d_motor);
 
-% 2) Sottrazione: dato che I_total è l'inerzia del sistema completo (razzo + motore)
-% riferita al cg_total, rimuoviamo il contributo del motore (entrambi riferiti a cg_total)
-% per ottenere l'inerzia del razzo senza motore, ma ancora riferita al cg_total.
+% 2) Sottraggo l'inerzia del motore da quella totale (entrambe al CG totale)
 I_rocket_aboutCGtotal = I_total - I_motor_aboutCGtotal;
 
 % 3) Riporto l'inerzia del razzo vuoto dal CG totale al SUO vero baricentro
 d_rocket = cg_total_v - cg_noMotor_v ;
-I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(M_rocket_noMotor, d_rocket);
+I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(M_rocket_with_no_motor, d_rocket);
 % Simmetrizza (numerico)
 I_rocket_noMotor = 0.5*(I_rocket_noMotor + I_rocket_noMotor.');
 
@@ -96,7 +86,7 @@ I_rocket_noMotor = 0.5*(I_rocket_noMotor + I_rocket_noMotor.');
 % Verifica che I_rocket_noMotor sia effettivamente riferito a cg_noMotor:
 % riportando entrambi i contributi al cg_total e sommando deve tornare I_total.
 d_check_rocket = cg_noMotor_v - cg_total_v;
-I_rocket_atCGtotal = I_rocket_noMotor + par_axis(M_rocket_noMotor, d_check_rocket);
+I_rocket_atCGtotal = I_rocket_noMotor + par_axis(M_rocket_with_no_motor, d_check_rocket);
 I_total_reconstructed = I_rocket_atCGtotal + I_motor_aboutCGtotal;
 reconstruction_error = norm(I_total_reconstructed - I_total, 'fro') / max(norm(I_total, 'fro'), 1e-30);
 if reconstruction_error > 1e-10
@@ -126,7 +116,7 @@ fmtNum = '%12.6g';
 
 fprintf('%-*s : %s kg\n\n', lblW, 'Motor mass', sprintf(fmtNum, M_motor));
 
-fprintf('%-*s : %s kg\n', lblW, 'Rocket mass without motor', sprintf(fmtNum, M_rocket_noMotor));
+fprintf('%-*s : %s kg\n', lblW, 'Rocket mass without motor', sprintf(fmtNum, M_rocket_with_no_motor));
 fprintf('%-*s : %s m\n\n', lblW, 'Rocket CG without motor (Z)', sprintf(fmtNum, cg_rocket_noMotor));
 
 % Motor inertia (at its CG) — show full matrix with box lines
@@ -145,7 +135,7 @@ fprintf('\n%s\n\n', sep);
 
 %% --- Salvataggio in Struct ----------------------------------------------
 info = struct( ...
-    'm_rocket_noMotor',   M_rocket_noMotor, ...
+    'm_rocket_noMotor',   M_rocket_with_no_motor, ...
     'cg_rocket_noMotor',  cg_rocket_noMotor, ...
     'I_rocket_noMotor',   I_rocket_noMotor, ...
     'M_motor',            M_motor, ...
