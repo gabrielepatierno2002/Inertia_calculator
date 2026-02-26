@@ -4,14 +4,14 @@
 % partendo da:
 %   - (M_total, cg_total, I_total) del razzo completo CON motore
 %     con I_total riferito a cg_total (OpenRocket)
-%   - Dati del motore (cilindro pieno, semplificato)
+%   - Dati del motore (cilindro cavo, semplificato)
 % -------------------------------------------------------------------------
 
 run('config_inertia.m');
 
 %% --- Validazione input ---------------------------------------------------
 requiredVars = {'I_total','M_total','cg_total','cg_noMotor', ...
-                'M_motor_dry','L_rocket','R_out','L_motor'};
+                'M_motor_dry','L_rocket','R_out','R_in','L_motor'};
 for k = 1:numel(requiredVars)
     assert(exist(requiredVars{k}, 'var')==1, 'Variabile mancante: %s', requiredVars{k});
 end
@@ -36,6 +36,7 @@ cg_motor_v = [0;0;cg_motor];
 assert(isscalar(M_motor_dry) && isnumeric(M_motor_dry) && M_motor_dry > 0, ...
     'M_motor_dry deve essere uno scalare > 0');
 assert(isscalar(R_out) && R_out > 0, 'R_out deve essere > 0');
+assert(isscalar(R_in) && R_in >= 0 && R_in < R_out, 'R_in deve essere >= 0 e < R_out');
 assert(isscalar(L_motor) && L_motor > 0, 'L_motor deve essere > 0');
 assert(isscalar(L_rocket) && L_rocket > 0, 'L_rocket deve essere > 0');
 assert(L_rocket >= L_motor, 'L_rocket deve essere >= L_motor');
@@ -46,9 +47,9 @@ I_total = 0.5*(I_total + I_total.');
 %% --- Massa motore --------------------------------------------------------
 M_motor = M_motor_dry;
 
-%% --- Inerzia motore (cilindro pieno, Z = asse) ---------------------------
-I_ax = 0.5 * M_motor * R_out^2;
-I_tr = (1/12) * M_motor * (3*R_out^2 + L_motor^2);
+%% --- Inerzia motore (cilindro cavo, Z = asse) ----------------------------
+I_ax = 0.5 * M_motor * (R_in^2 + R_out^2);
+I_tr = (1/12) * M_motor * (3*(R_in^2 + R_out^2) + L_motor^2);
 I_motor_c = diag([I_tr, I_tr, I_ax]);
 
 %% --- Steiner (assi paralleli) -------------------------------------------
@@ -78,6 +79,20 @@ I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(m_rocket_noMotor, d_rocket);
 % Simmetrizza (numerico)
 I_rocket_noMotor = 0.5*(I_rocket_noMotor + I_rocket_noMotor.');
 
+%% --- Check: ricostruzione I_total dal razzo senza motore + motore -------
+% Verifica che I_rocket_noMotor sia effettivamente riferito a cg_noMotor:
+% riportando entrambi i contributi al cg_total e sommando deve tornare I_total.
+d_check_rocket = cg_total_v - cg_noMotor_v;
+I_rocket_atCGtotal = I_rocket_noMotor + par_axis(m_rocket_noMotor, d_check_rocket);
+I_total_reconstructed = I_rocket_atCGtotal + I_motor_aboutCGtotal;
+reconstruction_error = norm(I_total_reconstructed - I_total, 'fro') / max(norm(I_total, 'fro'), 1e-30);
+if reconstruction_error > 1e-6
+    warning(['Check ricostruzione: I_total ricostruito differisce da I_total per %.3g (norma relativa, soglia=1e-6). ' ...
+             'Verificare che cg_noMotor e cg_total siano coerenti con I_total di OpenRocket.'], reconstruction_error);
+else
+    fprintf('Check OK: I_total ricostruito coincide con I_total (errore relativo = %.3g)\n\n', reconstruction_error);
+end
+
 %% --- Sanity check --------------------------------------------------------
 if any(eig(I_rocket_noMotor) <= 0)
     warning(['I_rocket_noMotor non è definito positivo. ' ...
@@ -106,7 +121,7 @@ fprintf('%-*s : %s m\n\n', lblW, 'Rocket CG without motor (Z)', sprintf(fmtNum, 
 
 % Motor inertia (at its CG) — show full matrix with box lines
 fprintf('%s\n', thin);
-fprintf('%s\n', centerText('Motor inertia tensor (at motor CG) — solid cylinder', length(thin)));
+fprintf('%s\n', centerText('Motor inertia tensor (at motor CG) — hollow cylinder', length(thin)));
 
 printMatrixBox(I_motor_c);
 fprintf('\n');
