@@ -47,7 +47,7 @@ I_total = 0.5*(I_total + I_total.');
 %% --- Massa motore --------------------------------------------------------
 M_motor = M_motor_dry;
 
-%% --- Inerzia motore (cilindro cavo, Z = asse) ----------------------------
+%% --- Inerzia motore (cilindro cavo) ----------------------------
 I_ax = 0.5 * M_motor * (R_in^2 + R_out^2);
 I_tr = (1/12) * M_motor * (3*(R_in^2 + R_out^2) + L_motor^2);
 I_motor_c = diag([I_tr, I_tr, I_ax]);
@@ -56,8 +56,7 @@ I_motor_c = diag([I_tr, I_tr, I_ax]);
 par_axis = @(m, d) m * (dot(d,d) * eye(3) - (d * d.'));
 
 %% --- Calcolo massa e CG del razzo senza motore --------------------------
-m_rocket_noMotor = M_total - M_motor;
-if m_rocket_noMotor <= 0
+if M_rocket_with_no_motor <= 0
     error('M_motor (%.6g) >= M_total (%.6g): impossibile calcolare il razzo senza motore.', M_motor, M_total);
 end
 
@@ -74,8 +73,7 @@ I_rocket_aboutCGtotal = I_total - I_motor_aboutCGtotal;
 
 % 3) Riporto l'inerzia del razzo vuoto dal CG totale al SUO vero baricentro
 d_rocket = cg_noMotor_v - cg_total_v;
-I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(m_rocket_noMotor, d_rocket);
-
+I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(M_rocket_with_no_motor, d_rocket);
 % Simmetrizza (numerico)
 I_rocket_noMotor = 0.5*(I_rocket_noMotor + I_rocket_noMotor.');
 
@@ -86,8 +84,8 @@ d_check_rocket = cg_total_v - cg_noMotor_v;
 I_rocket_atCGtotal = I_rocket_noMotor + par_axis(m_rocket_noMotor, d_check_rocket);
 I_total_reconstructed = I_rocket_atCGtotal + I_motor_aboutCGtotal;
 reconstruction_error = norm(I_total_reconstructed - I_total, 'fro') / max(norm(I_total, 'fro'), 1e-30);
-if reconstruction_error > 1e-6
-    warning(['Check ricostruzione: I_total ricostruito differisce da I_total per %.3g (norma relativa, soglia=1e-6). ' ...
+if reconstruction_error > 1e-10
+    warning(['Check ricostruzione: I_total ricostruito differisce da I_total per %.3g (norma relativa, soglia=1e-10). ' ...
              'Verificare che cg_noMotor e cg_total siano coerenti con I_total di OpenRocket.'], reconstruction_error);
 else
     fprintf('Check OK: I_total ricostruito coincide con I_total (errore relativo = %.3g)\n\n', reconstruction_error);
@@ -116,7 +114,7 @@ fmtNum = '%12.6g';
 
 fprintf('%-*s : %s kg\n\n', lblW, 'Motor mass', sprintf(fmtNum, M_motor));
 
-fprintf('%-*s : %s kg\n', lblW, 'Rocket mass without motor', sprintf(fmtNum, m_rocket_noMotor));
+fprintf('%-*s : %s kg\n', lblW, 'Rocket mass without motor', sprintf(fmtNum, M_rocket_with_no_motor));
 fprintf('%-*s : %s m\n\n', lblW, 'Rocket CG without motor (Z)', sprintf(fmtNum, cg_rocket_noMotor));
 
 % Motor inertia (at its CG) — show full matrix with box lines
