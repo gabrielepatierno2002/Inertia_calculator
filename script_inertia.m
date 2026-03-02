@@ -3,7 +3,7 @@
 
 run('config_inertia.m');
 
-%% ---  Validazione input ---------------------------------------------------
+%% --- Validazione input ---------------------------------------------------
 requiredVars = {'I_total','M_total','cg_total','cg_noMotor', ...
                 'M_motor_dry','L_rocket','R_out','R_in','L_motor'};
 for k = 1:numel(requiredVars)
@@ -22,7 +22,7 @@ assert(isscalar(cg_noMotor) && isnumeric(cg_noMotor), 'cg_noMotor deve essere un
 cg_total_v   = [0;0;cg_total];
 cg_noMotor_v = [0;0;cg_noMotor];
 
-% CG motore assunto = L_rocket - L_motor/2 
+% CG motore assunto = L_rocket - L_motor/2 lungo Z
 % (coordinate dal naso: il fondo del motore coincide con il fondo del razzo)
 cg_motor = L_rocket - L_motor/2;
 cg_motor_v = [0;0;cg_motor];
@@ -35,7 +35,7 @@ assert(isscalar(L_motor) && L_motor > 0, 'L_motor deve essere > 0');
 assert(isscalar(L_rocket) && L_rocket > 0, 'L_rocket deve essere > 0');
 assert(L_rocket >= L_motor, 'L_rocket deve essere >= L_motor');
 
-% Forzo simmetria numerica
+% Forzo simmetria numerica (utile se arriva da CAD con piccoli errori)
 I_total = 0.5*(I_total + I_total.');
 %% -- massa razzo senza motore%%
 M_rocket_noMotor = M_total - M_motor_with_prop;
@@ -65,12 +65,13 @@ cg_rocket_noMotor = cg_noMotor;
 %% --- Sottrazione inerziale ----------------------------------------------
 % 1) Porta l'inerzia del motore dal suo CG al CG totale
 %    (cg_motor = L_rocket - L_motor/2)
+% Spiego passo-passo con commenti e variabili intermedie per chiarezza.
 
 % vettore spostamento dal CG totale al CG motore (d = r_motor - r_total)
 d_motor = cg_motor_v - cg_total_v;
 
 % I_motor_full è l'inerzia del motore se fosse un cilindro pieno/composto,
-% calcolata precedentemente per includere eventualmente il propellente.
+% calcolata precedentemente per includere eventualmente la propellente (se definita).
 % Qui riportiamo l'inerzia del motore dal suo CG al CG totale usando il teorema di Steiner:
 I_motor_aboutCGtotal = I_motor_full + par_axis(M_motor_with_prop, d_motor);
 
@@ -79,10 +80,10 @@ I_motor_aboutCGtotal = I_motor_full + par_axis(M_motor_with_prop, d_motor);
 % per ottenere l'inerzia del razzo senza motore, ma ancora riferita al cg_total.
 I_rocket_aboutCGtotal = I_total - I_motor_aboutCGtotal;
 
-% 3) Riporto l'inerzia del razzo vuoto dal CG totale al SUO vero baricentro il cg senza motore
+% 3) Riporto l'inerzia del razzo vuoto dal CG totale al SUO vero baricentro
 d_rocket = cg_total_v - cg_noMotor_v ;
 I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(M_rocket_noMotor, d_rocket);
-% Simmetrizza
+% Simmetrizza (numerico)
 I_rocket_noMotor = 0.5*(I_rocket_noMotor + I_rocket_noMotor.');
 
 %% --- Check: ricostruzione I_total dal razzo senza motore + motore -------
@@ -117,7 +118,7 @@ fprintf('%s\n\n', sep);
 lblW = 36;
 fmtNum = '%12.6g';
 
-fprintf('%-*s : %s kg\n\n', lblW, 'Motor mass', sprintf(fmtNum, M_motor));
+fprintf('%-*s : %s kg\n\n', lblW, 'Motor casing mass', sprintf(fmtNum, M_motor));
 
 fprintf('%-*s : %s kg\n', lblW, 'Rocket mass without motor', sprintf(fmtNum, M_rocket_noMotor));
 fprintf('%-*s : %s m\n\n', lblW, 'Rocket CG without motor (Z)', sprintf(fmtNum, cg_rocket_noMotor));
