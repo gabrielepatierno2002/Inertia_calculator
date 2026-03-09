@@ -8,7 +8,8 @@ This MATLAB tool calculates the **inertia tensor, mass, and center of gravity (C
 
 | File | Description |
 |---|---|
-| `config_inertia.m` | **Configuration file** — define all your rocket & motor parameters here |
+| `InertiaCalculatorApp.m` | **GUI app** — interactive graphical interface for entering parameters and viewing results |
+| `config_inertia.m` | **Configuration file** — define all your rocket & motor parameters here (script-based workflow) |
 | `script_inertia.m` | **Main script** — reads the config, runs the calculations, prints results |
 | `README.md` | This documentation |
 
@@ -33,7 +34,37 @@ Since the centers of gravity (CG) of the full rocket, the empty rocket, and the 
 
 ---
 
-## 🛠️ Step-by-Step Usage Guide
+## 🖥️ GUI App (Recommended)
+
+The easiest way to use the calculator is through the interactive graphical app.
+
+### Launch the App
+
+In the MATLAB Command Window, navigate to the repository folder and type:
+
+```matlab
+InertiaCalculatorApp
+```
+
+The app window opens with two panels:
+
+| Panel | Description |
+|---|---|
+| **Configuration** (left) | Editable input fields for every parameter, pre-filled with the example values from `config_inertia.m` |
+| **Results** (right) | Formatted output showing masses, CG positions, and inertia tensors — updated each time you press **Calculate** |
+
+### App Buttons
+
+| Button | Action |
+|---|---|
+| **Calculate** | Reads all fields, validates the inputs, runs the inertia calculation, and displays the results |
+| **Reset to defaults** | Restores all input fields to the built-in example values |
+
+> **Requirements:** MATLAB R2019b or later (uses `uifigure` / App Designer runtime).
+
+---
+
+## 🛠️ Step-by-Step Usage Guide (Script-based workflow)
 
 ### Step 1 — Clone or Download
 

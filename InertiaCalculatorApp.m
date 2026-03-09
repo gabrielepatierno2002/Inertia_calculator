@@ -1,0 +1,465 @@
+classdef InertiaCalculatorApp < matlab.apps.AppBase
+% InertiaCalculatorApp  Graphical interface for the Inertia Calculator.
+%
+%   Launch with:
+%       app = InertiaCalculatorApp;
+%
+%   The app provides editable fields for every parameter that was
+%   previously set in config_inertia.m.  Press "Calculate" to run the
+%   inertia computation and view the formatted results on the right-hand
+%   panel.  All calculation logic is self-contained inside this file.
+
+    % ------------------------------------------------------------------ %
+    %  UI component properties
+    % ------------------------------------------------------------------ %
+    properties (Access = public)
+        UIFigure   matlab.ui.Figure
+
+        % ---- left panel (inputs) ----
+        InputPanel  matlab.ui.container.Panel
+
+        % Section A — full rocket (from OpenRocket / CAD)
+        LabelSecA       matlab.ui.control.Label
+        LblLrocket      matlab.ui.control.Label
+        FldLrocket      matlab.ui.control.NumericEditField
+        LblMtotal       matlab.ui.control.Label
+        FldMtotal       matlab.ui.control.NumericEditField
+        LblCgtotal      matlab.ui.control.Label
+        FldCgtotal      matlab.ui.control.NumericEditField
+        LblItotal       matlab.ui.control.Label
+        LblIxx          matlab.ui.control.Label
+        FldIxx          matlab.ui.control.NumericEditField
+        LblIyy          matlab.ui.control.Label
+        FldIyy          matlab.ui.control.NumericEditField
+        LblIzz          matlab.ui.control.Label
+        FldIzz          matlab.ui.control.NumericEditField
+
+        % Section B — motorless CG
+        LabelSecB       matlab.ui.control.Label
+        LblCgnoMotor    matlab.ui.control.Label
+        FldCgnoMotor    matlab.ui.control.NumericEditField
+
+        % Section C — motor geometry
+        LabelSecC       matlab.ui.control.Label
+        LblMmotorDry    matlab.ui.control.Label
+        FldMmotorDry    matlab.ui.control.NumericEditField
+        LblMmotorProp   matlab.ui.control.Label
+        FldMmotorProp   matlab.ui.control.NumericEditField
+        LblRout         matlab.ui.control.Label
+        FldRout         matlab.ui.control.NumericEditField
+        LblRin          matlab.ui.control.Label
+        FldRin          matlab.ui.control.NumericEditField
+        LblLmotor       matlab.ui.control.Label
+        FldLmotor       matlab.ui.control.NumericEditField
+
+        % action buttons
+        BtnCalculate    matlab.ui.control.Button
+        BtnReset        matlab.ui.control.Button
+
+        % ---- right panel (output) ----
+        OutputPanel  matlab.ui.container.Panel
+        OutputArea   matlab.ui.control.TextArea
+    end
+
+    % ------------------------------------------------------------------ %
+    %  Default parameter values (same as config_inertia.m)
+    % ------------------------------------------------------------------ %
+    properties (Access = private, Constant)
+        DEF_L_ROCKET          = 2.63
+        DEF_M_TOTAL           = 23.05
+        DEF_CG_TOTAL          = 1.70
+        DEF_IXX               = 10.84
+        DEF_IYY               = 10.84
+        DEF_IZZ               = 0.066
+        DEF_CG_NO_MOTOR       = 1.38
+        DEF_M_MOTOR_DRY       = 3.456
+        DEF_M_MOTOR_WITH_PROP = 8.273
+        DEF_R_OUT             = 0.098
+        DEF_R_IN              = 0.096
+        DEF_L_MOTOR           = 0.702
+    end
+
+    % ------------------------------------------------------------------ %
+    %  Private helpers
+    % ------------------------------------------------------------------ %
+    methods (Access = private)
+
+        % --------------------------------------------------------- %
+        function createComponents(app)
+            % ---- figure ----
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [80 60 980 660];
+            app.UIFigure.Name    = 'Inertia Calculator';
+            app.UIFigure.Color   = [0.94 0.94 0.94];
+
+            % ---- left input panel ----
+            app.InputPanel = uipanel(app.UIFigure);
+            app.InputPanel.Title    = 'Configuration';
+            app.InputPanel.Position = [10 10 430 640];
+            app.InputPanel.FontSize = 13;
+            app.InputPanel.FontWeight = 'bold';
+
+            % ---- right output panel ----
+            app.OutputPanel = uipanel(app.UIFigure);
+            app.OutputPanel.Title    = 'Results';
+            app.OutputPanel.Position = [450 10 520 640];
+            app.OutputPanel.FontSize = 13;
+            app.OutputPanel.FontWeight = 'bold';
+
+            % ---- output text area ----
+            app.OutputArea = uitextarea(app.OutputPanel);
+            app.OutputArea.Position      = [8 8 500 595];
+            app.OutputArea.Editable      = false;
+            app.OutputArea.FontName      = 'Courier New';
+            app.OutputArea.FontSize      = 11;
+            app.OutputArea.Value         = {'Press "Calculate" to run the computation.'};
+            app.OutputArea.BackgroundColor = [1 1 1];
+
+            % helper: returns [x y w h] for a row inside InputPanel
+            % row 1 is at the top
+            panH = 620;  rowH = 24; rowGap = 32; xLbl = 12; wLbl = 195;
+            xFld = 210;  wFld = 190; btnH = 30;
+
+            rowY = @(r) panH - r*rowGap - 10;
+
+            % ---- Section A label ----
+            app.LabelSecA = uilabel(app.InputPanel);
+            app.LabelSecA.Text       = 'A — Full Rocket (with motor, from OpenRocket)';
+            app.LabelSecA.Position   = [xLbl rowY(1) 410 rowH];
+            app.LabelSecA.FontWeight = 'bold';
+            app.LabelSecA.FontColor  = [0.12 0.31 0.60];
+
+            % L_rocket
+            app.LblLrocket = uilabel(app.InputPanel);
+            app.LblLrocket.Text     = 'Rocket length  L_rocket [m]';
+            app.LblLrocket.Position = [xLbl rowY(2) wLbl rowH];
+            app.FldLrocket = uieditfield(app.InputPanel, 'numeric');
+            app.FldLrocket.Position = [xFld rowY(2) wFld rowH];
+            app.FldLrocket.Value    = app.DEF_L_ROCKET;
+            app.FldLrocket.Limits   = [0 Inf];
+
+            % M_total
+            app.LblMtotal = uilabel(app.InputPanel);
+            app.LblMtotal.Text     = 'Total mass  M_total [kg]';
+            app.LblMtotal.Position = [xLbl rowY(3) wLbl rowH];
+            app.FldMtotal = uieditfield(app.InputPanel, 'numeric');
+            app.FldMtotal.Position = [xFld rowY(3) wFld rowH];
+            app.FldMtotal.Value    = app.DEF_M_TOTAL;
+            app.FldMtotal.Limits   = [0 Inf];
+
+            % cg_total
+            app.LblCgtotal = uilabel(app.InputPanel);
+            app.LblCgtotal.Text     = 'Total CG (Z from nose)  cg_total [m]';
+            app.LblCgtotal.Position = [xLbl rowY(4) wLbl rowH];
+            app.FldCgtotal = uieditfield(app.InputPanel, 'numeric');
+            app.FldCgtotal.Position = [xFld rowY(4) wFld rowH];
+            app.FldCgtotal.Value    = app.DEF_CG_TOTAL;
+            app.FldCgtotal.Limits   = [0 Inf];
+
+            % I_total (diagonal elements)
+            app.LblItotal = uilabel(app.InputPanel);
+            app.LblItotal.Text     = 'Inertia tensor diagonal  I_total [kg·m²]';
+            app.LblItotal.Position = [xLbl rowY(5) wLbl rowH];
+
+            app.LblIxx = uilabel(app.InputPanel);
+            app.LblIxx.Text     = '  Ixx';
+            app.LblIxx.Position = [xLbl rowY(6) 40 rowH];
+            app.FldIxx = uieditfield(app.InputPanel, 'numeric');
+            app.FldIxx.Position = [xFld rowY(6) wFld rowH];
+            app.FldIxx.Value    = app.DEF_IXX;
+            app.FldIxx.Limits   = [0 Inf];
+
+            app.LblIyy = uilabel(app.InputPanel);
+            app.LblIyy.Text     = '  Iyy';
+            app.LblIyy.Position = [xLbl rowY(7) 40 rowH];
+            app.FldIyy = uieditfield(app.InputPanel, 'numeric');
+            app.FldIyy.Position = [xFld rowY(7) wFld rowH];
+            app.FldIyy.Value    = app.DEF_IYY;
+            app.FldIyy.Limits   = [0 Inf];
+
+            app.LblIzz = uilabel(app.InputPanel);
+            app.LblIzz.Text     = '  Izz';
+            app.LblIzz.Position = [xLbl rowY(8) 40 rowH];
+            app.FldIzz = uieditfield(app.InputPanel, 'numeric');
+            app.FldIzz.Position = [xFld rowY(8) wFld rowH];
+            app.FldIzz.Value    = app.DEF_IZZ;
+            app.FldIzz.Limits   = [0 Inf];
+
+            % ---- Section B label ----
+            app.LabelSecB = uilabel(app.InputPanel);
+            app.LabelSecB.Text       = 'B — Motorless Rocket CG';
+            app.LabelSecB.Position   = [xLbl rowY(9.4) 410 rowH];
+            app.LabelSecB.FontWeight = 'bold';
+            app.LabelSecB.FontColor  = [0.12 0.31 0.60];
+
+            % cg_noMotor
+            app.LblCgnoMotor = uilabel(app.InputPanel);
+            app.LblCgnoMotor.Text     = 'CG w/o motor (Z)  cg_noMotor [m]';
+            app.LblCgnoMotor.Position = [xLbl rowY(10.4) wLbl rowH];
+            app.FldCgnoMotor = uieditfield(app.InputPanel, 'numeric');
+            app.FldCgnoMotor.Position = [xFld rowY(10.4) wFld rowH];
+            app.FldCgnoMotor.Value    = app.DEF_CG_NO_MOTOR;
+            app.FldCgnoMotor.Limits   = [0 Inf];
+
+            % ---- Section C label ----
+            app.LabelSecC = uilabel(app.InputPanel);
+            app.LabelSecC.Text       = 'C — Motor (hollow cylinder)';
+            app.LabelSecC.Position   = [xLbl rowY(11.8) 410 rowH];
+            app.LabelSecC.FontWeight = 'bold';
+            app.LabelSecC.FontColor  = [0.12 0.31 0.60];
+
+            % M_motor_dry
+            app.LblMmotorDry = uilabel(app.InputPanel);
+            app.LblMmotorDry.Text     = 'Motor casing mass  M_motor_dry [kg]';
+            app.LblMmotorDry.Position = [xLbl rowY(12.8) wLbl rowH];
+            app.FldMmotorDry = uieditfield(app.InputPanel, 'numeric');
+            app.FldMmotorDry.Position = [xFld rowY(12.8) wFld rowH];
+            app.FldMmotorDry.Value    = app.DEF_M_MOTOR_DRY;
+            app.FldMmotorDry.Limits   = [0 Inf];
+
+            % M_motor_with_prop
+            app.LblMmotorProp = uilabel(app.InputPanel);
+            app.LblMmotorProp.Text     = 'Motor + propellant  M_motor_with_prop [kg]';
+            app.LblMmotorProp.Position = [xLbl rowY(13.8) wLbl rowH];
+            app.FldMmotorProp = uieditfield(app.InputPanel, 'numeric');
+            app.FldMmotorProp.Position = [xFld rowY(13.8) wFld rowH];
+            app.FldMmotorProp.Value    = app.DEF_M_MOTOR_WITH_PROP;
+            app.FldMmotorProp.Limits   = [0 Inf];
+
+            % R_out
+            app.LblRout = uilabel(app.InputPanel);
+            app.LblRout.Text     = 'Outer radius  R_out [m]';
+            app.LblRout.Position = [xLbl rowY(14.8) wLbl rowH];
+            app.FldRout = uieditfield(app.InputPanel, 'numeric');
+            app.FldRout.Position = [xFld rowY(14.8) wFld rowH];
+            app.FldRout.Value    = app.DEF_R_OUT;
+            app.FldRout.Limits   = [0 Inf];
+
+            % R_in
+            app.LblRin = uilabel(app.InputPanel);
+            app.LblRin.Text     = 'Inner radius  R_in [m]';
+            app.LblRin.Position = [xLbl rowY(15.8) wLbl rowH];
+            app.FldRin = uieditfield(app.InputPanel, 'numeric');
+            app.FldRin.Position = [xFld rowY(15.8) wFld rowH];
+            app.FldRin.Value    = app.DEF_R_IN;
+            app.FldRin.Limits   = [0 Inf];
+
+            % L_motor
+            app.LblLmotor = uilabel(app.InputPanel);
+            app.LblLmotor.Text     = 'Motor length  L_motor [m]';
+            app.LblLmotor.Position = [xLbl rowY(16.8) wLbl rowH];
+            app.FldLmotor = uieditfield(app.InputPanel, 'numeric');
+            app.FldLmotor.Position = [xFld rowY(16.8) wFld rowH];
+            app.FldLmotor.Value    = app.DEF_L_MOTOR;
+            app.FldLmotor.Limits   = [0 Inf];
+
+            % ---- buttons ----
+            app.BtnCalculate = uibutton(app.InputPanel, 'push');
+            app.BtnCalculate.Text            = 'Calculate';
+            app.BtnCalculate.Position        = [xLbl rowY(18.4) 195 btnH];
+            app.BtnCalculate.FontSize        = 13;
+            app.BtnCalculate.FontWeight      = 'bold';
+            app.BtnCalculate.BackgroundColor = [0.18 0.55 0.34];
+            app.BtnCalculate.FontColor       = [1 1 1];
+            app.BtnCalculate.ButtonPushedFcn = createCallbackFcn(app, @onCalculate, true);
+
+            app.BtnReset = uibutton(app.InputPanel, 'push');
+            app.BtnReset.Text            = 'Reset to defaults';
+            app.BtnReset.Position        = [xFld rowY(18.4) 195 btnH];
+            app.BtnReset.FontSize        = 13;
+            app.BtnReset.BackgroundColor = [0.75 0.75 0.75];
+            app.BtnReset.ButtonPushedFcn = createCallbackFcn(app, @onReset, true);
+
+            % ---- show window ----
+            app.UIFigure.Visible = 'on';
+        end
+
+        % --------------------------------------------------------- %
+        function onReset(app, ~)
+            app.FldLrocket.Value    = app.DEF_L_ROCKET;
+            app.FldMtotal.Value     = app.DEF_M_TOTAL;
+            app.FldCgtotal.Value    = app.DEF_CG_TOTAL;
+            app.FldIxx.Value        = app.DEF_IXX;
+            app.FldIyy.Value        = app.DEF_IYY;
+            app.FldIzz.Value        = app.DEF_IZZ;
+            app.FldCgnoMotor.Value  = app.DEF_CG_NO_MOTOR;
+            app.FldMmotorDry.Value  = app.DEF_M_MOTOR_DRY;
+            app.FldMmotorProp.Value = app.DEF_M_MOTOR_WITH_PROP;
+            app.FldRout.Value       = app.DEF_R_OUT;
+            app.FldRin.Value        = app.DEF_R_IN;
+            app.FldLmotor.Value     = app.DEF_L_MOTOR;
+            app.OutputArea.Value    = {'Values reset to defaults.  Press "Calculate" to run.'};
+        end
+
+        % --------------------------------------------------------- %
+        function onCalculate(app, ~)
+            % -- read inputs --
+            L_rocket          = app.FldLrocket.Value;
+            M_total           = app.FldMtotal.Value;
+            cg_total          = app.FldCgtotal.Value;
+            I_total           = diag([app.FldIxx.Value, app.FldIyy.Value, app.FldIzz.Value]);
+            cg_noMotor        = app.FldCgnoMotor.Value;
+            M_motor_dry       = app.FldMmotorDry.Value;
+            M_motor_with_prop = app.FldMmotorProp.Value;
+            R_out             = app.FldRout.Value;
+            R_in              = app.FldRin.Value;
+            L_motor           = app.FldLmotor.Value;
+
+            % -- validate --
+            try
+                assert(M_total > 0,              'M_total must be > 0');
+                assert(M_motor_dry > 0,          'M_motor_dry must be > 0');
+                assert(M_motor_with_prop > 0,    'M_motor_with_prop must be > 0');
+                assert(R_out > 0,                'R_out must be > 0');
+                assert(R_in >= 0 && R_in < R_out, 'R_in must be >= 0 and < R_out');
+                assert(L_motor > 0,              'L_motor must be > 0');
+                assert(L_rocket > 0,             'L_rocket must be > 0');
+                assert(L_rocket >= L_motor,      'L_rocket must be >= L_motor');
+                assert(M_motor_dry < M_total,    'M_motor_dry must be < M_total');
+                assert(M_motor_with_prop < M_total, 'M_motor_with_prop must be < M_total');
+            catch ME
+                app.OutputArea.Value = {['⚠  Validation error: ' ME.message]};
+                return
+            end
+
+            % -- calculation (mirrors script_inertia.m) --
+            I_total = 0.5 * (I_total + I_total.');
+
+            M_motor           = M_motor_dry;
+            M_rocket_noMotor  = M_total - M_motor_with_prop;
+
+            if M_rocket_noMotor <= 0
+                app.OutputArea.Value = {sprintf( ...
+                    '⚠  M_motor_with_prop (%.6g) >= M_total (%.6g): cannot compute motorless rocket.', ...
+                    M_motor_with_prop, M_total)};
+                return
+            end
+
+            cg_motor    = L_rocket - L_motor / 2;
+            cg_total_v  = [0; 0; cg_total];
+            cg_noMotor_v = [0; 0; cg_noMotor];
+            cg_motor_v  = [0; 0; cg_motor];
+
+            % motor inertia tensors (at motor CG)
+            I_ax      = 0.5 * M_motor * (R_in^2 + R_out^2);
+            I_tr      = (1/12) * M_motor * (3*(R_in^2 + R_out^2) + L_motor^2);
+            I_motor_c = diag([I_tr, I_tr, I_ax]);
+
+            I_ax_full    = 0.5 * M_motor_with_prop * R_out^2;
+            I_tr_full    = (1/12) * M_motor_with_prop * (3*R_out^2 + L_motor^2);
+            I_motor_full = diag([I_tr_full, I_tr_full, I_ax_full]);
+
+            par_axis = @(m, d) m * (dot(d,d)*eye(3) - (d*d.'));
+
+            % transfer motor inertia to total CG
+            d_motor               = cg_motor_v - cg_total_v;
+            I_motor_aboutCGtotal  = I_motor_full + par_axis(M_motor_with_prop, d_motor);
+
+            % subtract motor contribution
+            I_rocket_aboutCGtotal = I_total - I_motor_aboutCGtotal;
+
+            % transfer to motorless rocket CG
+            d_rocket        = cg_total_v - cg_noMotor_v;
+            I_rocket_noMotor = I_rocket_aboutCGtotal - par_axis(M_rocket_noMotor, d_rocket);
+            I_rocket_noMotor = 0.5 * (I_rocket_noMotor + I_rocket_noMotor.');
+
+            cg_rocket_noMotor = cg_noMotor;
+
+            % reconstruction check
+            d_check_rocket       = cg_noMotor_v - cg_total_v;
+            I_rocket_atCGtotal   = I_rocket_noMotor + par_axis(M_rocket_noMotor, d_check_rocket);
+            I_total_reconstructed = I_rocket_atCGtotal + I_motor_aboutCGtotal;
+            rec_err = norm(I_total_reconstructed - I_total, 'fro') / max(norm(I_total, 'fro'), 1e-30);
+
+            % -- format output --
+            lines = {};
+            sep  = repmat('=', 1, 56);
+            thin = repmat('-', 1, 56);
+
+            lines{end+1} = sep;
+            lines{end+1} = centerStr('INERTIA CALCULATOR', 56);
+            lines{end+1} = sep;
+            lines{end+1} = '';
+            lines{end+1} = sprintf('%-32s : %.6g kg',   'Motor casing mass',            M_motor);
+            lines{end+1} = '';
+            lines{end+1} = sprintf('%-32s : %.6g kg',   'Rocket mass w/o motor',        M_rocket_noMotor);
+            lines{end+1} = sprintf('%-32s : %.6g m',    'Rocket CG w/o motor (Z)',       cg_rocket_noMotor);
+            lines{end+1} = '';
+            lines{end+1} = thin;
+            lines{end+1} = centerStr('Motor inertia tensor (at motor CG)', 56);
+            lines{end+1} = centerStr('hollow cylinder', 56);
+            lines = [lines, matrixLines(I_motor_c)];
+            lines{end+1} = '';
+            lines{end+1} = thin;
+            lines{end+1} = centerStr('Rocket WITHOUT motor', 56);
+            lines{end+1} = centerStr('inertia tensor (at its CG)', 56);
+            lines = [lines, matrixLines(I_rocket_noMotor)];
+            lines{end+1} = '';
+            lines{end+1} = sep;
+            lines{end+1} = '';
+
+            if rec_err > 1e-10
+                lines{end+1} = sprintf(['⚠  Reconstruction check: relative error = %.3g  ' ...
+                    '(> 1e-10).  Verify that cg_noMotor and cg_total are consistent with I_total.'], rec_err);
+            else
+                lines{end+1} = sprintf('✓  Reconstruction check OK  (relative error = %.3g)', rec_err);
+            end
+
+            if any(eig(I_rocket_noMotor) <= 0)
+                lines{end+1} = '⚠  I_rocket_noMotor is not positive-definite.';
+                lines{end+1} = '   Check that I_total is referenced to cg_total.';
+            end
+
+            app.OutputArea.Value = lines;
+        end
+
+    end  % private methods
+
+    % ------------------------------------------------------------------ %
+    %  Public constructor / destructor
+    % ------------------------------------------------------------------ %
+    methods (Access = public)
+
+        function app = InertiaCalculatorApp
+            createComponents(app);
+            registerApp(app, app.UIFigure);
+            if nargout == 0
+                clear app
+            end
+        end
+
+        function delete(app)
+            delete(app.UIFigure)
+        end
+
+    end
+
+end  % classdef
+
+% ======================================================================= %
+%  File-level helper functions (not methods — keep them outside the class)
+% ======================================================================= %
+
+function s = centerStr(str, width)
+    if length(str) >= width
+        s = str;
+    else
+        pad = floor((width - length(str)) / 2);
+        s   = [repmat(' ', 1, pad) str];
+    end
+end
+
+function lines = matrixLines(M)
+    % Returns a cell-array of strings rendering a 3x3 matrix in an ASCII box.
+    valW    = 14;
+    hLine   = ['+' repmat('-', 1, valW+2) '+' repmat('-', 1, valW+2) '+' repmat('-', 1, valW+2) '+'];
+    lines   = {hLine};
+    for i = 1:3
+        row = '|';
+        for j = 1:3
+            row = [row sprintf(' %*.*g |', valW, 6, M(i,j))]; %#ok<AGROW>
+        end
+        lines{end+1} = row;   %#ok<AGROW>
+        lines{end+1} = hLine; %#ok<AGROW>
+    end
+end
