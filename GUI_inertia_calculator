@@ -124,7 +124,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
 
             % L_rocket
             app.LblLrocket = uilabel(app.InputPanel);
-            app.LblLrocket.Text     = 'Rocket length  L_rocket [m]';
+            app.LblLrocket.Text     = 'L_rocket [m]';
             app.LblLrocket.Position = [xLbl rowY(2) wLbl rowH];
             app.FldLrocket = uieditfield(app.InputPanel, 'numeric');
             app.FldLrocket.Position = [xFld rowY(2) wFld rowH];
@@ -133,7 +133,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
 
             % M_total
             app.LblMtotal = uilabel(app.InputPanel);
-            app.LblMtotal.Text     = 'Total mass  M_total [kg]';
+            app.LblMtotal.Text     = 'M_total [kg]';
             app.LblMtotal.Position = [xLbl rowY(3) wLbl rowH];
             app.FldMtotal = uieditfield(app.InputPanel, 'numeric');
             app.FldMtotal.Position = [xFld rowY(3) wFld rowH];
@@ -142,7 +142,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
 
             % cg_total
             app.LblCgtotal = uilabel(app.InputPanel);
-            app.LblCgtotal.Text     = 'Total CG (Z from nose)  cg_total [m]';
+            app.LblCgtotal.Text     = 'cg_total [m]';
             app.LblCgtotal.Position = [xLbl rowY(4) wLbl rowH];
             app.FldCgtotal = uieditfield(app.InputPanel, 'numeric');
             app.FldCgtotal.Position = [xFld rowY(4) wFld rowH];
@@ -187,7 +187,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
 
             % cg_noMotor
             app.LblCgnoMotor = uilabel(app.InputPanel);
-            app.LblCgnoMotor.Text     = 'CG w/o motor (Z)  cg_noMotor [m]';
+            app.LblCgnoMotor.Text     = 'cg_noMotor [m]';
             app.LblCgnoMotor.Position = [xLbl rowY(10.4) wLbl rowH];
             app.FldCgnoMotor = uieditfield(app.InputPanel, 'numeric');
             app.FldCgnoMotor.Position = [xFld rowY(10.4) wFld rowH];
@@ -203,7 +203,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
 
             % M_motor_dry
             app.LblMmotorDry = uilabel(app.InputPanel);
-            app.LblMmotorDry.Text     = 'Motor casing mass  M_motor_dry [kg]';
+            app.LblMmotorDry.Text     = 'Mass_motor_dry [kg]';
             app.LblMmotorDry.Position = [xLbl rowY(12.8) wLbl rowH];
             app.FldMmotorDry = uieditfield(app.InputPanel, 'numeric');
             app.FldMmotorDry.Position = [xFld rowY(12.8) wFld rowH];
@@ -239,7 +239,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
 
             % L_motor
             app.LblLmotor = uilabel(app.InputPanel);
-            app.LblLmotor.Text     = 'Motor length  L_motor [m]';
+            app.LblLmotor.Text     = 'L_motor [m]';
             app.LblLmotor.Position = [xLbl rowY(16.8) wLbl rowH];
             app.FldLmotor = uieditfield(app.InputPanel, 'numeric');
             app.FldLmotor.Position = [xFld rowY(16.8) wFld rowH];
