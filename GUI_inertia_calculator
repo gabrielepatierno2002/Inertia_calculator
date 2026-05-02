@@ -1,6 +1,6 @@
 %% PRESS F5 TO RUN!!!!!!%%
 
-classdef InertiaCalculatorApp < matlab.apps.AppBase
+classdef GUI_inertia_calculator < matlab.apps.AppBase
 
     % ------------------------------------------------------------------ %
     %  UI component properties
@@ -413,7 +413,7 @@ classdef InertiaCalculatorApp < matlab.apps.AppBase
     % ------------------------------------------------------------------ %
     methods (Access = public)
 
-        function app = InertiaCalculatorApp
+        function app = GUI_inertia_calculator
             createComponents(app);
             registerApp(app, app.UIFigure);
             if nargout == 0
